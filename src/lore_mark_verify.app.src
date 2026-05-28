@@ -1,0 +1,24 @@
+%% lore_mark_verify.app.src -- OTP application descriptor.
+%%
+%% LIBRARY application (no supervisor tree, no start/stop callback).
+%% Consumers depend on this app and call the modules directly.
+%%
+%% Cohort-canonical regulator-grade L43 Mirror-Mark v1 cold-verifier.
+%% Algorithm-byte-identical to github.com/davly/lore-mark-verify (Go).
+
+{application, lore_mark_verify, [
+    {description, "Cohort-canonical regulator-grade L43 Mirror-Mark v1 cold-verifier (Erlang/OTP SDK port). Zero Hex deps; OTP stdlib only."},
+    {vsn, "0.1.0"},
+    {registered, []},
+    {applications, [
+        kernel,
+        stdlib,
+        crypto
+    ]},
+    {modules, [
+        lore_mark_verify
+    ]},
+    {licenses, ["Apache-2.0"]},
+    {links, [{"GitHub", "https://github.com/davly/lore-mark-verify-otp"}]},
+    {env, []}
+]}.

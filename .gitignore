@@ -1,0 +1,26 @@
+# Erlang / rebar3 build artefacts
+_build/
+.rebar3/
+*.beam
+*.lock
+ebin/
+deps/
+log/
+logs/
+
+# Test caches
+.eunit/
+.proper/
+
+# Dialyzer
+*.plt
+.plt/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
