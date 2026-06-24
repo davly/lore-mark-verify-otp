@@ -282,9 +282,10 @@ verify(Payload, Mark, Key, CorpusSha)
 
 %% @private
 verify_with_prefix(Payload, Mark, Key, CorpusSha) ->
-    PrefixLen = byte_size(?MARK_PREFIX),
+    Prefix = ?MARK_PREFIX,
+    PrefixLen = byte_size(Prefix),
     case Mark of
-        <<(?MARK_PREFIX):PrefixLen/binary, Encoded/binary>> ->
+        <<MarkPrefix:PrefixLen/binary, Encoded/binary>> when MarkPrefix =:= Prefix ->
             verify_encoded(Payload, Encoded, Key, CorpusSha);
         _ ->
             {error, err_unknown_mark_version}
@@ -347,9 +348,10 @@ verify_body(Payload, Body, Key, CorpusSha) ->
 -spec extract(Mark :: binary()) ->
         {ok, mark_parts()} | {error, err_unknown_mark_version | err_malformed_mark}.
 extract(Mark) when is_binary(Mark) ->
-    PrefixLen = byte_size(?MARK_PREFIX),
+    Prefix = ?MARK_PREFIX,
+    PrefixLen = byte_size(Prefix),
     case Mark of
-        <<(?MARK_PREFIX):PrefixLen/binary, Encoded/binary>> ->
+        <<MarkPrefix:PrefixLen/binary, Encoded/binary>> when MarkPrefix =:= Prefix ->
             extract_encoded(Encoded);
         _ ->
             {error, err_unknown_mark_version}

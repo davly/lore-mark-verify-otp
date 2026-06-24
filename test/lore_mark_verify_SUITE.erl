@@ -76,7 +76,10 @@
     extract_returns_mark_parts/1,
     extract_no_prefix_returns_unknown_version/1,
     extract_bad_base64_returns_malformed/1,
-    extract_corpus_prefix_matches_input/1
+    extract_corpus_prefix_matches_input/1,
+
+    %% OTP-28 prefix-pattern build-break regression (illegal-pattern guard)
+    otp28_prefix_pattern_match_path/1
 ]).
 
 %%--------------------------------------------------------------------
@@ -129,7 +132,9 @@ all() ->
         extract_returns_mark_parts,
         extract_no_prefix_returns_unknown_version,
         extract_bad_base64_returns_malformed,
-        extract_corpus_prefix_matches_input
+        extract_corpus_prefix_matches_input,
+
+        otp28_prefix_pattern_match_path
     ].
 
 init_per_suite(Config) ->
@@ -376,6 +381,51 @@ extract_corpus_prefix_matches_input(_) ->
     {mark_parts, _, CorpusPrefix, _} = Parts,
     <<Expected:8/binary, _/binary>> = Corpus,
     Expected = CorpusPrefix.
+
+%%--------------------------------------------------------------------
+%% OTP-28 prefix-pattern build-break regression
+%%
+%% The as-shipped verify_with_prefix/4 and extract/1 matched on
+%%   <<(?MARK_PREFIX):PrefixLen/binary, Encoded/binary>>
+%% where ?MARK_PREFIX expands to the literal <<"lore@v1:">> and
+%% PrefixLen is a runtime variable. On OTP 28 (and the rule has always
+%% held: "a literal string in a binary pattern must not have a type or
+%% a size") erlc rejects this as `illegal pattern`, so NO .beam is
+%% produced and the entire SDK is non-buildable. The whole suite is
+%% the discrimination proof (it cannot load without a compiled module),
+%% but this case pins the BEHAVIOUR of the corrected prefix-match path:
+%% an exact 8-byte prefix is accepted on the happy path, and a prefix
+%% that differs in only the final byte must be rejected as an unknown
+%% mark version (proving the `MarkPrefix =:= Prefix` guard still
+%% enforces an exact, full-prefix match -- not a mere length match).
+%%--------------------------------------------------------------------
+
+otp28_prefix_pattern_match_path(_) ->
+    Prefix = lore_mark_verify:mark_prefix(),
+    8 = byte_size(Prefix),
+    Mark = dev_mark(),
+
+    %% Happy path: the corrected variable-sized prefix segment + equality
+    %% guard accepts the exact "lore@v1:" prefix in BOTH the verify/4 and
+    %% extract/1 patterns.
+    {ok, verified} =
+        lore_mark_verify:verify(?DEV_PAYLOAD, Mark, ?DEV_KEY, dev_corpus()),
+    {ok, _Parts} = lore_mark_verify:extract(Mark),
+
+    %% Tamper ONLY the final prefix byte (':' -> ';'), keeping the byte
+    %% length identical. A bare variable-sized segment would still bind
+    %% (same length) -- the `=:= Prefix` guard is what rejects it. Both
+    %% entrypoints MUST return err_unknown_mark_version.
+    <<Head:7/binary, $:>> = Prefix,
+    WrongPrefix = <<Head/binary, $;>>,
+    8 = byte_size(WrongPrefix),
+    <<_OldPrefix:8/binary, Encoded/binary>> = Mark,
+    Tampered = <<WrongPrefix/binary, Encoded/binary>>,
+    8 = byte_size(Tampered) - byte_size(Encoded),
+    {error, err_unknown_mark_version} =
+        lore_mark_verify:verify(?DEV_PAYLOAD, Tampered, ?DEV_KEY, dev_corpus()),
+    {error, err_unknown_mark_version} =
+        lore_mark_verify:extract(Tampered).
 
 %%--------------------------------------------------------------------
 %% Internal helpers
